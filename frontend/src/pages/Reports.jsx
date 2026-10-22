@@ -6,6 +6,7 @@ import { Alert, money } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
 import { printPaper } from '../print.js';
 import { BTN, BTN_PRIMARY, BTN_SM, CTL, PageHead, Kpi, Card, Pill, Chips, Search, Tbl, Empty, Bar } from '../components/ws/admin.jsx';
+import Select from '../components/Select.jsx';
 
 // Reports & Analytics — Phase 10.
 //
@@ -55,11 +56,11 @@ export default function Reports() {
   // top); the ledger-style reports stay reachable from this picker, which
   // sits with the screen's actions.
   const more = (
-    <select value={GENERIC[k] ? k : ''} onChange={(e) => e.target.value && (e.target.value === '__audit' ? nav('/admin/audit') : nav(`/reports/${e.target.value}`))} className={`${CTL} !w-56`}>
+    <Select value={GENERIC[k] ? k : ''} onChange={(e) => e.target.value && (e.target.value === '__audit' ? nav('/admin/audit') : nav(`/reports/${e.target.value}`))} className="!w-56">
       <option value="">More reports…</option>
       {generic.map(([id, v]) => <option key={id} value={id}>{v.title}</option>)}
       {can('audit.view') && <option value="__audit">Audit log</option>}
-    </select>
+    </Select>
   );
   return k === 'velocity' ? <Velocity more={more} /> : k === 'expiry' ? <Expiry more={more} /> : GENERIC[k] ? <Generic id={k} def={GENERIC[k]} more={more} /> : <Revenue more={more} />;
 }
@@ -105,7 +106,7 @@ function Revenue({ more }) {
           <Lbl label="Report type"><div className={`${CTL} flex items-center bg-slate-50 text-slate-600`}>Revenue & sales detailed</div></Lbl>
           <Lbl label="From date"><input type="date" className={`${CTL} font-mono`} value={from} onChange={(e) => setFrom(e.target.value)} /></Lbl>
           <Lbl label="To date"><input type="date" className={`${CTL} font-mono`} value={to} onChange={(e) => setTo(e.target.value)} /></Lbl>
-          <Lbl label="Group by"><select className={CTL} value={group} onChange={(e) => setGroup(e.target.value)}><option value="day">Day (daily batch)</option><option value="category">Patient category</option><option value="type">Bill type</option></select></Lbl>
+          <Lbl label="Group by"><Select value={group} onChange={(e) => setGroup(e.target.value)}><option value="day">Day (daily batch)</option><option value="category">Patient category</option><option value="type">Bill type</option></Select></Lbl>
           <button type="button" className={`${BTN_PRIMARY} h-10 justify-center`} onClick={load}>Run</button>
         </div>
       </Card>
@@ -217,10 +218,10 @@ function Velocity({ more }) {
 
       <Card>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 items-end">
-          <Lbl label="Velocity classification"><select className={CTL} value={tier} onChange={(e) => setTier(e.target.value)}><option value="all">All tiers</option><option value="fast">Fast moving (≥10/day)</option><option value="moderate">Moderate (2–10/day)</option><option value="slow">Slow moving (&lt;2/day)</option><option value="dead">Dead stock (none out)</option></select></Lbl>
+          <Lbl label="Velocity classification"><Select value={tier} onChange={(e) => setTier(e.target.value)}><option value="all">All tiers</option><option value="fast">Fast moving (≥10/day)</option><option value="moderate">Moderate (2–10/day)</option><option value="slow">Slow moving (&lt;2/day)</option><option value="dead">Dead stock (none out)</option></Select></Lbl>
           <Lbl label="From"><input type="date" className={`${CTL} font-mono`} value={from} onChange={(e) => setFrom(e.target.value)} /></Lbl>
           <Lbl label="To"><input type="date" className={`${CTL} font-mono`} value={to} onChange={(e) => setTo(e.target.value)} /></Lbl>
-          <Lbl label="Drug schedule"><select className={CTL} value={sched} onChange={(e) => setSched(e.target.value)}><option value="">All schedules</option><option value="OTC">OTC</option><option value="Rx">Rx</option><option value="G">Schedule G</option><option value="Narcotic">Controlled</option></select></Lbl>
+          <Lbl label="Drug schedule"><Select value={sched} onChange={(e) => setSched(e.target.value)}><option value="">All schedules</option><option value="OTC">OTC</option><option value="Rx">Rx</option><option value="G">Schedule G</option><option value="Narcotic">Controlled</option></Select></Lbl>
           <Lbl label="Search"><Search value={q} onChange={setQ} placeholder="Medicine, generic, company…" /></Lbl>
           <button type="button" className={`${BTN_PRIMARY} h-10 justify-center`} onClick={load}>Run analysis</button>
         </div>
@@ -324,8 +325,8 @@ function Expiry({ more }) {
 
       <Card>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-          <Lbl label="Expiry horizon"><select className={CTL} value={horizon} onChange={(e) => setHorizon(e.target.value)}><option value="near">Near-expiry window ({ex?.near_expiry_days || 90} days)</option><option value="30">Critical horizon (&lt; 30 days)</option><option value="expired">Expired on the shelf</option></select></Lbl>
-          <Lbl label="Licensed supplier"><select className={CTL} value={vendor} onChange={(e) => setVendor(e.target.value)}><option value="">All suppliers</option>{vendors.map((v) => <option key={v} value={v}>{v}</option>)}</select></Lbl>
+          <Lbl label="Expiry horizon"><Select value={horizon} onChange={(e) => setHorizon(e.target.value)}><option value="near">Near-expiry window ({ex?.near_expiry_days || 90} days)</option><option value="30">Critical horizon (&lt; 30 days)</option><option value="expired">Expired on the shelf</option></Select></Lbl>
+          <Lbl label="Licensed supplier"><Select value={vendor} onChange={(e) => setVendor(e.target.value)}><option value="">All suppliers</option>{vendors.map((v) => <option key={v} value={v}>{v}</option>)}</Select></Lbl>
           <button type="button" className={`${BTN_PRIMARY} h-10 justify-center`} onClick={load}><Icon name="returns" size={14} /> Run audit</button>
           {can('inventory.manage') && <button type="button" className={`${BTN} h-10 justify-center !text-rose-700`} onClick={quarantineExpired} disabled={!ex?.expired?.batches}><Icon name="warning" size={14} /> Pull all expired off the shelf</button>}
         </div>

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import Select from '../components/Select.jsx';
+import Select, { selectIsOpen } from '../components/Select.jsx';
+import { enterToNext, focusField } from '../components/enterNav.js';
 import { api } from '../api.js';
 import { isTouch, useRevealOnSelect } from '../components/touch.js';
 import { useAuth } from '../auth.jsx';
@@ -265,7 +266,7 @@ function SectionHead({ n, title, sub, right }) {
 function Modal({ title, sub, right, children, onClose, wide, onSubmit }) {
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); }
+      if (e.key === 'Escape' && !selectIsOpen()) { e.preventDefault(); e.stopPropagation(); onClose(); }
       else if (e.key === 'F9' && onSubmit) { e.preventDefault(); e.stopPropagation(); onSubmit(); }
     };
     window.addEventListener('keydown', onKey, true);
@@ -736,6 +737,16 @@ function PurchaseModal({ vendor, products, bookings, onClose, onDone, onErr }) {
   const [busy, setBusy] = useState(false);
   const setRow = (i, k, v) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, [k]: v } : r)));
   const total = rows.reduce((s, r) => s + Number(r.cost_price || 0) * Number(r.quantity || 0), 0);
+  // Enter walks invoice → paid → order → each line's medicine, qty, cost,
+  // MRP, batch, expiry; Enter on the last expiry opens a fresh line.
+  const formRef = useRef(null);
+  const focusNewLine = useRef(false);
+  const addLine = () => { focusNewLine.current = true; setRows((rs) => [...rs, blank()]); };
+  useEffect(() => {
+    if (!focusNewLine.current) return;
+    focusNewLine.current = false;
+    focusField(formRef.current?.querySelector('tbody tr:last-child .sel-trigger'));
+  }, [rows.length]);
   const prod = (id) => products.find((p) => String(p.id) === String(id));
 
   const save = useCallback(async () => {
@@ -759,7 +770,7 @@ function PurchaseModal({ vendor, products, bookings, onClose, onDone, onErr }) {
   return (
     <Modal title={`Goods received — ${vendor.name}`} sub="inward stock against a supplier invoice" onClose={onClose} onSubmit={save} wide
       right={<Tag tone="blue">quantities in base units</Tag>}>
-      <div className="p-4 space-y-3">
+      <div ref={formRef} className="p-4 space-y-3" onKeyDown={(e) => enterToNext(e, { onLastField: addLine })}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <Field label="Supplier invoice / challan no"><input className={`${CTL} font-mono`} value={invoice} onChange={(e) => setInvoice(e.target.value)} placeholder="e.g. DC-2026-8819" autoFocus /></Field>
           <Field label="Paid on receipt (Rs)" hint="the rest goes on the vendor's account"><input type="number" min="0" className={NUM} value={paid} onChange={(e) => setPaid(e.target.value)} placeholder="0" /></Field>
@@ -810,7 +821,8 @@ function PurchaseModal({ vendor, products, bookings, onClose, onDone, onErr }) {
           </table>
         </div>
         <div className="flex items-center justify-between">
-          <button type="button" className={BTN} onClick={() => setRows((rs) => [...rs, blank()])}><Icon name="plus" size={12} /> Add line</button>
+          <button type="button" className={BTN} onClick={addLine}><Icon name="plus" size={12} /> Add line</button>
+          <span className="kbd-hint text-[10px] text-slate-500 mr-auto ml-3"><Kbd>Enter</Kbd> next field · <Kbd>F9</Kbd> receive</span>
           <div className="text-right">
             <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Invoice total</div>
             <div className="font-mono font-black text-lg text-slate-900">{money(total)}</div>

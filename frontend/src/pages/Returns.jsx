@@ -6,6 +6,7 @@ import { Icon } from '../components/icons.jsx';
 import { Alert, money } from '../components/ui.jsx';
 import { Kbd, BTN, BTN_DARK, CTL, LABEL } from '../components/ws/index.jsx';
 import { printPaper } from '../print.js';
+import Select from '../components/Select.jsx';
 
 // Customer returns.
 //
@@ -208,10 +209,10 @@ export default function Returns() {
               <div className="p-3 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className={LABEL} htmlFor="ret-reason">Reason for return *</label>
-                  <select id="ret-reason" className={CTL} value={reason} onChange={(e) => setReason(e.target.value)}>
+                  <Select id="ret-reason" value={reason} onChange={(e) => setReason(e.target.value)}>
                     <option value="">Choose a reason…</option>
                     {(meta.reasons || Object.keys(REASON_LABEL)).map((r) => <option key={r} value={r}>{REASON_LABEL[r] || r}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label className={LABEL} htmlFor="ret-note">{reason === 'other' ? 'Say what *' : 'Note (optional)'}</label>

@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
@@ -7,6 +8,7 @@ import { CategoryBadge, Alert, money, useConfirm, strengthOf } from '../componen
 import { OFFLINE_MESSAGE } from '../connection.js';
 import { Kbd, CTL, BTN, BTN_DARK, LABEL } from '../components/ws/index.jsx';
 import { printPaper } from '../print.js';
+import Select from '../components/Select.jsx';
 
 // Pharmacy counter.
 //
@@ -90,6 +92,9 @@ async function printHandover(patientId) {
 // styles.css sizes text fields for forms (44px); the counter is denser than
 // that, so every control here overrides the height explicitly.
 const NUM = `${CTL} font-mono font-bold text-right px-2`;
+// The customer bar's text boxes (lookup, walk-in name/phone, new customer):
+// the dashboard's standard 40px control, full width.
+const FIELD = 'w-full';
 
 export default function Pharmacy() {
   const { hospitalMode, config, user, can } = useAuth();
@@ -290,9 +295,13 @@ export default function Pharmacy() {
   }, [holdBusy, loadHeld, confirm]);
 
   // --- Cart ---------------------------------------------------------------
+  // A medicine picked from the search list (not scanned) hands the cursor to
+  // its quantity; Enter there hands it back to the search bar.
+  const focusQtyFor = useRef(null);
   const addToCart = useCallback((product, qty = 1) => {
     setErr('');
     if (product.sellable != null && product.sellable <= 0) {
+      focusQtyFor.current = null;
       setErr(`${product.name} has no sellable stock.`);
       return;
     }
@@ -330,6 +339,14 @@ export default function Pharmacy() {
     });
     setActiveLine(product.id);
   }, []);
+
+  useEffect(() => {
+    const pid = focusQtyFor.current;
+    if (pid == null) return;
+    focusQtyFor.current = null;
+    const el = qtyRefs.current[pid];
+    if (el) { el.focus(); el.select(); }
+  }, [cart]);
 
   // Base units a line resolves to, and the multiplier for its chosen uom.
   const unitsIn = (i, uom = i.uom) =>
@@ -689,7 +706,7 @@ export default function Pharmacy() {
             1.1): it takes the width, the key row wraps beneath it when the
             screen is short of room, never the other way round. */}
         <div className="flex flex-wrap items-center gap-3">
-          <ProductSearch inputRef={searchRef} onPick={addToCart} onError={setErr} />
+          <ProductSearch inputRef={searchRef} onPick={addToCart} onChosen={(p) => { focusQtyFor.current = p.id; }} onError={setErr} />
           {/* Phones: a 4-column grid of 44px keys (item 8); a row from `sm` up. */}
           <div className="grid grid-cols-4 gap-1.5 w-full sm:w-auto sm:flex sm:items-center sm:flex-wrap">
             <button type="button" className={`${BTN} justify-center sm:justify-start`} onClick={focusSearch}><Kbd>F2</Kbd> Search</button>
@@ -861,38 +878,44 @@ export default function Pharmacy() {
               )}
 
               {mode === 'dept' && (
-                <div className="mt-2 grid grid-cols-2 md:grid-cols-5 gap-2">
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-x-3 gap-y-2 items-start">
+                  {/* One-line labels and the dashboard's standard 40px box on
+                      every field, so the row lines up; the required note sits
+                      under its box instead of wrapping the label. */}
                   <div>
-                    <label className={LABEL}>Department</label>
-                    <select aria-label="Department" className={`${CTL} w-full px-2`} value={deptId} onChange={(e) => setDeptId(e.target.value)}>
+                    <label className={`${LABEL} truncate`} htmlFor="dept-id">Department</label>
+                    <Select id="dept-id" value={deptId} onChange={(e) => setDeptId(e.target.value)}>
                       {depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
+                    </Select>
                   </div>
                   <div>
-                    <label className={`${LABEL} ${!deptPatient.collected_by_name.trim() ? 'text-rose-800' : ''}`}>Collected by * {!deptPatient.collected_by_name.trim() && <span className="normal-case font-normal tracking-normal">— required before issuing</span>}</label>
-                    <input className={`${CTL} w-full px-2 ${!deptPatient.collected_by_name.trim() ? '!border-rose-400 bg-rose-50/40' : ''}`} value={deptPatient.collected_by_name} required aria-required="true"
+                    <label className={`${LABEL} truncate ${!deptPatient.collected_by_name.trim() ? '!text-rose-700' : ''}`} htmlFor="dept-collector">Collected by *</label>
+                    <input id="dept-collector" className={`${CTL} ${FIELD} ${!deptPatient.collected_by_name.trim() ? '!border-rose-400 focus:!border-rose-500 focus:!shadow-[0_0_0_1px_#f43f5e]' : ''}`}
+                      value={deptPatient.collected_by_name} required aria-required="true" aria-describedby="dept-collector-hint"
                       onChange={(e) => setDeptPatient({ ...deptPatient, collected_by_name: e.target.value })}
                       placeholder="Who is taking it" />
+                    {!deptPatient.collected_by_name.trim() && <div id="dept-collector-hint" className="text-[11px] text-rose-700 mt-1 truncate">Required to issue</div>}
                   </div>
                   <div>
-                    <label className={LABEL}>Their mobile</label>
-                    <input aria-label="Their mobile" className={`${CTL} w-full px-2 font-mono`} value={deptPatient.collected_by_contact}
+                    <label className={`${LABEL} truncate`} htmlFor="dept-mobile">Their mobile</label>
+                    <input id="dept-mobile" type="tel" inputMode="tel" className={`${CTL} ${FIELD}`} value={deptPatient.collected_by_contact}
                       onChange={(e) => setDeptPatient({ ...deptPatient, collected_by_contact: e.target.value })}
                       placeholder="03xx-xxxxxxx" />
                   </div>
                   <div>
-                    <label className={LABEL}>Patient / ward / bed</label>
-                    <input aria-label="Patient / ward / bed" className={`${CTL} w-full px-2`} value={deptPatient.patient_name}
+                    <label className={`${LABEL} truncate`} htmlFor="dept-patient" title="Patient, ward or bed">Patient / ward</label>
+                    <input id="dept-patient" className={`${CTL} ${FIELD}`} value={deptPatient.patient_name}
                       onChange={(e) => setDeptPatient({ ...deptPatient, patient_name: e.target.value })}
                       placeholder="Optional" />
                   </div>
                   <div>
-                    <label className={LABEL}>Slip serial</label>
-                    <input aria-label="Slip serial" className={`${CTL} w-full px-2 font-mono`} value={deptPatient.slip_ref}
-                      onChange={(e) => setDeptPatient({ ...deptPatient, slip_ref: e.target.value })} />
+                    <label className={`${LABEL} truncate`} htmlFor="dept-slip">Slip serial</label>
+                    <input id="dept-slip" className={`${CTL} ${FIELD}`} value={deptPatient.slip_ref}
+                      onChange={(e) => setDeptPatient({ ...deptPatient, slip_ref: e.target.value })}
+                      placeholder="Optional" />
                   </div>
                   {dept && (
-                    <div className="col-span-2 md:col-span-5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded px-3 py-2">
+                    <div className="sm:col-span-2 lg:col-span-5 text-[12px] text-slate-600 bg-slate-50 border border-slate-200 rounded-md px-3 py-2">
                       Billed to <b>{dept.name}</b> on account at{' '}
                       {dept.invoice_basis === 'cost' ? 'cost price'
                         : dept.invoice_basis === 'mrp' ? 'retail price'
@@ -1082,7 +1105,7 @@ export default function Pharmacy() {
                   <>
                     <div>
                       <label className={LABEL}>Prescriber *</label>
-                      <input aria-label="Prescriber" className={`${CTL} w-full px-2`} value={rx.prescriber_name} onChange={setRxField('prescriber_name')} placeholder="Dr. …" />
+                      <input aria-label="Prescriber"  value={rx.prescriber_name} onChange={setRxField('prescriber_name')} placeholder="Dr. …" />
                     </div>
                     <div>
                       <label className={LABEL}>PMDC reg. no</label>
@@ -1090,7 +1113,7 @@ export default function Pharmacy() {
                     </div>
                     <div>
                       <label className={LABEL}>Collected by</label>
-                      <input aria-label="Collected by" className={`${CTL} w-full px-2`} value={rx.buyer_name} onChange={setRxField('buyer_name')} placeholder="Name of person collecting" />
+                      <input aria-label="Collected by"  value={rx.buyer_name} onChange={setRxField('buyer_name')} placeholder="Name of person collecting" />
                     </div>
                     <div>
                       <label className={LABEL}>CNIC {narcoticLines.length ? '*' : ''}</label>
@@ -1436,107 +1459,156 @@ function CustomerBar({
 
   const initials = (n) => (n || '?').split(' ').filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join('');
 
+  // The match list under the lookup: ↑/↓ to move, Enter to attach, Esc to close.
+  const [hitIdx, setHitIdx] = useState(0);
+  const hitsRef = useRef(null);
+  const listRef = useRef(null);
+  const [listPos, setListPos] = useState(null);
+  useEffect(() => { setHitIdx(0); }, [hits]);
+  useEffect(() => {
+    if (!hits.length) return undefined;
+    const onDoc = (e) => {
+      if (hitsRef.current?.contains(e.target) || listRef.current?.contains(e.target)) return;
+      setHits([]);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [hits]);
+  // The list floats over the page (portalled, fixed) so it neither stretches
+  // the customer panel nor gets clipped by it; it follows the lookup on scroll.
+  useLayoutEffect(() => {
+    if (!hits.length) { setListPos(null); return undefined; }
+    const place = () => {
+      const r = hitsRef.current?.getBoundingClientRect();
+      if (!r) return;
+      if (r.bottom < 0 || r.top > window.innerHeight) { setHits([]); return; }
+      const width = Math.min(Math.max(r.width, 320), window.innerWidth - 16);
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+      setListPos({ top: r.bottom + 4, left, width, maxHeight: Math.max(160, Math.min(360, window.innerHeight - r.bottom - 12)) });
+    };
+    place();
+    const onScroll = (e) => { if (!listRef.current?.contains(e.target)) place(); };
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', place);
+    return () => { window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', place); };
+  }, [hits]);
+  const choose = (h) => { setPatient(h); setHits([]); setKey(''); };
+  const addNew = () => {
+    const q = key.trim();
+    const isMobile = /^0\d{9,}$/.test(q);
+    setNw({ full_name: isMobile ? '' : q, contact: isMobile ? q : '' }); setCreating(true); setHits([]);
+  };
+  function onLookupKey(e) {
+    if (!hits.length) return;
+    const last = Math.min(hits.length, 8); // the "add new" row
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHitIdx((i) => Math.min(i + 1, last)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHitIdx((i) => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (hitIdx >= last) addNew(); else choose(hits[hitIdx]); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setHits([]); }
+  }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-      {/* Lookup */}
-      <div className="lg:col-span-5">
-        <div className="flex items-center justify-between mb-1">
-          <label className={`${LABEL} mb-0`}>
-            Customer <span className="text-[9px] font-normal text-slate-500 font-mono normal-case">[card · mobile · name]</span>
-          </label>
-        </div>
-        <form className="flex" onSubmit={lookup}>
-          <input ref={inputRef} value={key} onChange={(e) => setKey(e.target.value)} disabled={disabled || !!patient}
-            className={`${CTL} flex-1 min-w-0 px-3 font-mono rounded-r-none`}
-            aria-label="Customer card number, mobile or name" placeholder={patient ? '' : 'Scan the card, or type card no / mobile / name'} />
-          <button className={`${BTN} rounded-l-none border-l-0`} disabled={disabled || busy || !key.trim() || !!patient}>
-            {busy ? '…' : 'Lookup'}
-          </button>
-        </form>
-        {hits.length > 0 && (
-          <div className="pos-cust-hits mt-2">
-            {hits.slice(0, 6).map((h) => (
-              <button type="button" key={h.id} className="pos-cust-hit"
-                onClick={() => { setPatient(h); setHits([]); setKey(''); }}>
-                <b>{h.full_name}</b>
-                <span className="muted sm">{h.contact || h.patient_code}</span>
-              </button>
-            ))}
-            <button type="button" className={BTN}
-              onClick={() => { setNw({ full_name: key, contact: '' }); setCreating(true); setHits([]); }}>
-              None of these — add new
-            </button>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-3 gap-y-2 items-start">
+      {/* Who they are. Once attached, the customer card takes the lookup's
+          place across the bar; Change goes back to the lookup. Hidden while
+          a new customer is being typed in (UI report 2.2). */}
+      {patient && !creating && !seeking && (
+        <div className="sm:col-span-2 lg:col-span-12">
+          <span className={LABEL}>Customer</span>
+          <div className="pos-cust-card">
+            <div className="pos-cust-avatar">{initials(patient.full_name)}</div>
+            <div className="min-w-0 flex-1">
+              <div className="pos-cust-name truncate">{patient.full_name}</div>
+              <div className="pos-cust-meta">
+                <span>{patient.patient_code}</span>
+                {patient.contact && <><span aria-hidden="true">·</span><span>{patient.contact}</span></>}
+              </div>
+            </div>
+            <div className="pos-cust-pills">
+              {card && !card.is_expired && <span className="pos-pill green">{Math.round(card.discount_pct * 100)}% · {card.card_no}</span>}
+              {card?.is_expired && <span className="pos-pill red">Card expired</span>}
+              {!card && <span className="pos-pill">No card</span>}
+              {creditAccount
+                ? <span className="pos-pill amber">On account · {money(creditAccount.balance)} owed</span>
+                : card && !card.is_expired && card.ceiling_left != null
+                  ? <span className="pos-pill blue">{money(card.ceiling_left)} left this month</span>
+                  : <span className="pos-pill">No credit account</span>}
+            </div>
+            <button type="button" className={`${BTN} shrink-0`} disabled={disabled}
+              onClick={() => { setPatient(null); setKey(''); setTimeout(() => inputRef.current?.focus(), 0); }}>Change</button>
           </div>
+        </div>
+      )}
+
+      {/* Lookup */}
+      {!patient && <div className="sm:col-span-2 lg:col-span-5">
+        <label className={LABEL} htmlFor="cust-lookup">Customer lookup</label>
+        <div className="relative" ref={hitsRef}>
+          <form className="flex" onSubmit={lookup}>
+            <div className="relative flex-1 min-w-0">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><Icon name="search" size={15} /></span>
+              <input id="cust-lookup" ref={inputRef} value={key} onChange={(e) => { setKey(e.target.value); setHits([]); }} disabled={disabled}
+                onKeyDown={onLookupKey} autoComplete="off" spellCheck={false} role="combobox" aria-expanded={hits.length > 0}
+                className={`${CTL} ${FIELD} !pl-9 rounded-r-none`} placeholder="Card no, mobile or name" />
+            </div>
+            <button className={`${BTN} rounded-l-none border-l-0 px-4`} disabled={disabled || busy || !key.trim()}>
+              {busy ? '…' : 'Lookup'}
+            </button>
+          </form>
+          {hits.length > 0 && createPortal(
+            <div ref={listRef} className="pos-cust-list" role="listbox" style={listPos || { top: -9999, left: 0, opacity: 0 }}>
+              <div className="pos-cust-list-head">{hits.length} customer{hits.length === 1 ? '' : 's'} match “{key.trim()}”</div>
+              {hits.slice(0, 8).map((h, idx) => (
+                <button type="button" key={h.id} role="option" aria-selected={idx === hitIdx}
+                  className={`pos-cust-row ${idx === hitIdx ? 'active' : ''}`}
+                  onMouseEnter={() => setHitIdx(idx)} onClick={() => choose(h)}>
+                  <span className="pos-cust-avatar sm">{initials(h.full_name)}</span>
+                  <span className="min-w-0 flex-1 text-left">
+                    <span className="pos-cust-name block truncate">{h.full_name}</span>
+                    <span className="pos-cust-meta">{[h.contact, h.patient_code].filter(Boolean).join(' · ')}</span>
+                  </span>
+                </button>
+              ))}
+              <button type="button" className={`pos-cust-row add ${hitIdx === Math.min(hits.length, 8) ? 'active' : ''}`}
+                onMouseEnter={() => setHitIdx(Math.min(hits.length, 8))} onClick={addNew}>
+                <span className="pos-cust-avatar sm"><Icon name="plus" size={14} /></span>
+                <span className="pos-cust-name">None of these — add new customer</span>
+              </button>
+            </div>,
+            document.body
+          )}
+        </div>
+        {!creating && !seeking && hits.length === 0 && (
+          <div className="text-[11px] text-slate-500 mt-1">No customer attached — this is a walk-in sale.</div>
         )}
         {creating && (
           <div className="grid grid-cols-2 gap-2 mt-2">
             <div><label className={LABEL}>Name *</label>
-              <input aria-label="Name" className={`${CTL} w-full px-2`} value={nw.full_name} onChange={(e) => setNw({ ...nw, full_name: e.target.value })} autoFocus /></div>
+              <input aria-label="Name" className={`${CTL} ${FIELD}`} value={nw.full_name} onChange={(e) => setNw({ ...nw, full_name: e.target.value })} placeholder="Full name" autoFocus /></div>
             <div><label className={LABEL}>Mobile</label>
-              <input aria-label="Mobile" className={`${CTL} w-full px-2 font-mono`} value={nw.contact} onChange={(e) => setNw({ ...nw, contact: e.target.value })} placeholder="03xx-xxxxxxx" /></div>
+              <input aria-label="Mobile" type="tel" inputMode="tel" className={`${CTL} ${FIELD}`} value={nw.contact} onChange={(e) => setNw({ ...nw, contact: e.target.value })} placeholder="03xx-xxxxxxx" /></div>
             <div className="col-span-2 flex gap-1.5">
               <button type="button" className={BTN_DARK} onClick={create} disabled={!nw.full_name.trim()}>Save customer</button>
               <button type="button" className={`${BTN} !bg-white`} onClick={() => setCreating(false)}>Cancel</button>
             </div>
           </div>
         )}
-      </div>
-
-      {/* Who they are — the design's profile card. Hidden while a new
-          customer is being typed in (UI report 2.2): "this is a walk-in
-          sale" next to a create form contradicts it. */}
-      {!creating && !seeking && <div className="lg:col-span-4 bg-slate-50 border border-slate-200 rounded p-2 flex items-center gap-3 min-h-[52px]">
-        {patient ? (
-          <>
-            <div className="h-9 w-9 rounded bg-slate-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
-              {initials(patient.full_name)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-bold text-slate-900 truncate">{patient.full_name}</span>
-                {card && !card.is_expired && (
-                  <span className="text-[10px] font-semibold font-mono text-emerald-800 bg-emerald-50 border border-emerald-300 px-1.5 py-0.5 rounded whitespace-nowrap">
-                    {Math.round(card.discount_pct * 100)}% · {card.card_no}
-                  </span>
-                )}
-                {card?.is_expired && <Tag tone="red">card expired</Tag>}
-                {!card && <Tag tone="gray">no card</Tag>}
-              </div>
-              <div className="text-[10px] font-mono text-slate-500 truncate mt-0.5">
-                {patient.patient_code}{patient.contact ? ` • ${patient.contact}` : ''}
-              </div>
-              <div className="text-[9px] text-slate-500 mt-0.5 font-mono">
-                {creditAccount
-                  ? <>On account: <span className="text-slate-700 font-medium">{money(creditAccount.balance)} owed</span></>
-                  : card && !card.is_expired && card.ceiling_left != null
-                    ? <>Card this month: <span className="text-slate-700 font-medium">{money(card.ceiling_left)} left</span></>
-                    : 'No credit account'}
-              </div>
-            </div>
-            <button type="button" className={`${BTN} !bg-white shrink-0`} disabled={disabled}
-              onClick={() => { setPatient(null); setKey(''); }}>Change</button>
-          </>
-        ) : (
-          <div className="text-[11px] text-slate-500">
-            No customer identified — this is a walk-in sale. Scan a card or type a mobile to attach one.
-          </div>
-        )}
       </div>}
 
       {/* An ordinary walk-in needs no record at all. Kept beside the lookup so
           the common case stays one line, not a form. */}
-      {!creating && !patient && !seeking && <div className="md:col-span-3 grid grid-cols-2 gap-2">
-        <div>
+      {!creating && !patient && !seeking && <>
+        <div className="lg:col-span-4">
           <label className={LABEL} htmlFor="cust-name">Name (optional)</label>
-          <input id="cust-name" className={`${CTL} w-full px-2`} value={customerName} onChange={(e) => setCustomerName(e.target.value)}
+          <input id="cust-name" className={`${CTL} ${FIELD}`} value={customerName} onChange={(e) => setCustomerName(e.target.value)}
             placeholder="Walk-in" disabled={disabled || !!patient} />
         </div>
-        <div>
+        <div className="lg:col-span-3">
           <label className={LABEL} htmlFor="cust-phone">Phone (optional)</label>
-          <input id="cust-phone" className={`${CTL} w-full px-2 font-mono`} value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
-            placeholder="03xx…" disabled={disabled || !!patient} />
+          <input id="cust-phone" type="tel" inputMode="tel" className={`${CTL} ${FIELD}`} value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
+            placeholder="03xx-xxxxxxx" disabled={disabled || !!patient} />
         </div>
-      </div>}
+      </>}
     </div>
   );
 }
@@ -1581,12 +1653,13 @@ function HeldBar({ held, busy, hasCart, label, onResume, onDiscard }) {
 }
 
 // --- Scan / type-ahead product search ---------------------------------------
-function ProductSearch({ inputRef, onPick, onError }) {
+function ProductSearch({ inputRef, onPick, onChosen, onError }) {
   const [q, setQ] = useState('');
   const [rows, setRows] = useState([]);
   const [active, setActive] = useState(0);
   const [searching, setSearching] = useState(false);
   const latest = useRef(0);
+  const listRef = useRef(null);
 
   useEffect(() => {
     const term = q.trim();
@@ -1598,7 +1671,9 @@ function ProductSearch({ inputRef, onPick, onError }) {
         .then((r) => {
           // Ignore a slow response that a newer keystroke has superseded.
           if (seq !== latest.current) return;
-          setRows(r); setActive(0); setSearching(false);
+          // Start on the first medicine that can actually be sold.
+          const first = r.findIndex((x) => !(x.sellable <= 0));
+          setRows(r); setActive(first >= 0 ? first : 0); setSearching(false);
           // A barcode scanner types the full code then Enter. An exact,
           // unambiguous barcode hit is added straight away so the operator
           // never has to look at the list.
@@ -1612,10 +1687,18 @@ function ProductSearch({ inputRef, onPick, onError }) {
     return () => clearTimeout(t);
   }, [q, onPick, onError]);
 
+  // Keep the keyboard highlight in view while arrowing through a long list.
+  useEffect(() => {
+    listRef.current?.querySelector(`[data-idx="${active}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [active]);
+
+  // Chosen from the list: the line's quantity takes the cursor next (the
+  // scanner path above stays in the search bar for the next scan).
   function pick(p) {
+    if (p.sellable > 0 && onChosen) onChosen(p);
     onPick(p);
     setQ(''); setRows([]); setActive(0);
-    inputRef.current?.focus();
+    if (!(p.sellable > 0) || !onChosen) inputRef.current?.focus();
   }
 
   function onKeyDown(e) {
@@ -1650,13 +1733,13 @@ function ProductSearch({ inputRef, onPick, onError }) {
       </div>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-40 bg-white border border-slate-300 rounded shadow-lg max-h-80 overflow-y-auto overflow-x-hidden" role="listbox">
+        <div ref={listRef} className="absolute left-0 right-0 top-full mt-1 z-40 bg-white border border-slate-300 rounded shadow-lg max-h-80 overflow-y-auto overflow-x-hidden" role="listbox">
           {searching && rows.length === 0 && <div className="px-3 py-2.5 text-xs text-slate-500">Searching…</div>}
           {!searching && rows.length === 0 && <div className="px-3 py-2.5 text-xs text-slate-500">No medicine matches “{q}”.</div>}
           {rows.map((p, idx) => (
-            <div key={p.id} role="button" tabIndex={-1}
-              className={`grid grid-cols-[minmax(0,1fr)_110px_90px] gap-3 items-center px-3 py-2 text-xs border-b border-slate-100 last:border-b-0 ${
-                idx === active ? 'bg-sky-50' : ''} ${p.sellable <= 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            <div key={p.id} role="option" tabIndex={-1} data-idx={idx} aria-selected={idx === active}
+              className={`pos-hit grid grid-cols-[minmax(0,1fr)_110px_90px] gap-3 items-center px-3 py-2 text-xs border-b border-slate-100 last:border-b-0 ${
+                idx === active ? 'active' : ''} ${p.sellable <= 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               onMouseEnter={() => setActive(idx)} onClick={() => p.sellable > 0 && pick(p)}>
               <div className="min-w-0">
                 <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">

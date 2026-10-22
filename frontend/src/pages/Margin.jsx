@@ -5,6 +5,7 @@ import { Alert, money } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
 import { BTN, BTN_PRIMARY, CTL, PageHead, Kpi, Card, Pill, Tbl, Empty } from '../components/ws/admin.jsx';
 import { downloadCSV } from './Reports.jsx';
+import Select from '../components/Select.jsx';
 
 // "how much company earn on their sales" — the client's words.
 //
@@ -71,12 +72,12 @@ export default function Margin() {
 
       <Card>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4 items-end">
-          <Lbl label="Category scope"><select className={CTL} value={group} onChange={(e) => setGroup(e.target.value)}>{GROUPS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Lbl>
-          <Lbl label="Financial year"><select className={CTL} value={fy} onChange={(e) => setFy(e.target.value)}><option value="">Use the dates</option>{years.map((y) => <option key={y.fy} value={y.fy}>FY {y.label}</option>)}</select></Lbl>
+          <Lbl label="Category scope"><Select value={group} onChange={(e) => setGroup(e.target.value)}>{GROUPS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select></Lbl>
+          <Lbl label="Financial year"><Select value={fy} onChange={(e) => setFy(e.target.value)}><option value="">Use the dates</option>{years.map((y) => <option key={y.fy} value={y.fy}>FY {y.label}</option>)}</Select></Lbl>
           <Lbl label="From date"><input type="date" className={`${CTL} font-mono`} value={from} onChange={(e) => setFrom(e.target.value)} disabled={!!fy} /></Lbl>
           <Lbl label="To date"><input type="date" className={`${CTL} font-mono`} value={to} onChange={(e) => setTo(e.target.value)} disabled={!!fy} /></Lbl>
-          <Lbl label="Breakdown"><select className={CTL} value={period} onChange={(e) => setPeriod(e.target.value)}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Lbl>
-          <Lbl label="Threshold"><select className={CTL} value={threshold} onChange={(e) => setThreshold(e.target.value)}><option value="all">All margins</option><option value="low">Thin (&lt; 15%)</option><option value="neg">Loss-making</option><option value="high">High yield (≥ 30%)</option></select></Lbl>
+          <Lbl label="Breakdown"><Select value={period} onChange={(e) => setPeriod(e.target.value)}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select></Lbl>
+          <Lbl label="Threshold"><Select value={threshold} onChange={(e) => setThreshold(e.target.value)}><option value="all">All margins</option><option value="low">Thin (&lt; 15%)</option><option value="neg">Loss-making</option><option value="high">High yield (≥ 30%)</option></Select></Lbl>
           <div className="flex items-center gap-2">
             <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 whitespace-nowrap"><input type="checkbox" className="!w-4 !h-4 accent-[#0284c7]" checked={fiscal} onChange={(e) => setFiscal(e.target.checked)} /> Fiscal years</label>
             <button type="button" className={`${BTN_PRIMARY} h-10`} onClick={load}>Run</button>

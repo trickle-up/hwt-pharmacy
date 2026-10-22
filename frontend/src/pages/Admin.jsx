@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import Select from '../components/Select.jsx';
+import Select, { selectIsOpen } from '../components/Select.jsx';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Alert, money } from '../components/ui.jsx';
@@ -562,7 +562,7 @@ function Employees({ can }) {
 
 function StaffLedger({ row, st, onClose }) {
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); } };
+    const onKey = (e) => { if (e.key === 'Escape' && !selectIsOpen()) { e.preventDefault(); e.stopPropagation(); onClose(); } };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
@@ -714,9 +714,9 @@ function Catalogue() {
             <div className="flex items-center gap-2 flex-wrap">
               <input className={`${CTL} !w-56 !h-9`} placeholder="Form name (e.g. Lozenges)" value={newType.name} onChange={(e) => setNewType({ ...newType, name: e.target.value })} />
               <label className="inline-flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" className="!w-4 !h-4 accent-[#0284c7]" checked={newType.is_medicine} onChange={(e) => setNewType({ ...newType, is_medicine: e.target.checked })} /> Batch & expiry required</label>
-              <select className={`${CTL} !w-52 !h-9`} value={newType.default_schedule} onChange={(e) => setNewType({ ...newType, default_schedule: e.target.value })}>
+              <Select className="!w-52" style={{ '--ctl-h': '36px' }} value={newType.default_schedule} onChange={(e) => setNewType({ ...newType, default_schedule: e.target.value })}>
                 <option value="OTC">General sale (OTC)</option><option value="Rx">Doctor prescription (Rx)</option><option value="G">Controlled (Schedule G)</option>
-              </select>
+              </Select>
               <button type="button" className={BTN_PRIMARY} onClick={addType} disabled={!newType.name.trim()}>+ Add Form</button>
             </div>
           </div>
@@ -1071,9 +1071,9 @@ function Subsidy() {
     <>
       <PageHead title={null} sub="What the trust waived, out of whose money, and for whom — from the bills and the fund each card is attributed to."
         right={<>
-          <select value={period} onChange={(e) => setPeriod(e.target.value)} className={`${CTL} !w-64 !h-9`}>
+          <Select value={period} onChange={(e) => setPeriod(e.target.value)} className="!w-64" style={{ '--ctl-h': '36px' }}>
             <option value="month">Period: this month</option><option value="year">Period: this calendar year</option><option value="all">Period: all time</option>
-          </select>
+          </Select>
           <button type="button" className={BTN_PRIMARY} onClick={() => printPaper('a4', { modal: false })}><Icon name="printer" size={14} /> Print official report</button>
         </>} />
       <Alert type="error" onClose={() => setErr('')}>{err}</Alert>

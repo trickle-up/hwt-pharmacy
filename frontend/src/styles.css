@@ -208,18 +208,40 @@
   .sel-arrow svg { width: 16px; height: 16px; }
   .sel-trigger.open .sel-arrow { transform: rotate(180deg); color: var(--action); }
 
-  .sel-menu { position: absolute; z-index: 45; top: calc(100% + 4px); inset-inline: 0; margin: 0; padding: 4px; list-style: none;
-    background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); max-height: 288px; overflow-y: auto;
-    box-shadow: 0 4px 12px -2px rgba(15, 45, 89, .08), 0 2px 4px -1px rgba(15, 45, 89, .04);
+  /* Portalled to <body> with fixed coordinates set by Select.jsx, above modals (z 60). */
+  .sel-menu { position: fixed; z-index: 70; margin: 0; display: flex; flex-direction: column;
+    background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); max-height: 320px; overflow: hidden;
+    box-shadow: 0 8px 20px -4px rgba(15, 45, 89, .16), 0 2px 6px -1px rgba(15, 45, 89, .08);
     animation: selIn .12s ease; }
   @keyframes selIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .sel-search { display: flex; align-items: center; gap: 6px; margin: 6px 6px 2px; padding: 0 8px; height: 34px; flex-shrink: 0;
+    border: 1px solid var(--line); border-radius: var(--radius-xs); background: #f8fafc; color: var(--ink-faint); transition: border-color .12s, box-shadow .12s; }
+  .sel-search:focus-within { border-color: var(--action); box-shadow: 0 0 0 1px var(--action); background: #fff; color: var(--action); }
+  .sel-search svg { flex-shrink: 0; }
+  .sel-menu .sel-search input, .sel-menu .sel-search input:focus { flex: 1; min-width: 0; height: 100%; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none;
+    font-size: var(--ctl-fs, 13px); color: var(--text); outline: none; }
+  .sel-clear { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; min-height: 0; padding: 0; border: 0;
+    border-radius: 50%; background: transparent; color: var(--ink-faint); cursor: pointer; }
+  .sel-clear:hover { background: #e2e8f0; color: var(--text); }
+  .sel-list { margin: 0; padding: 4px; list-style: none; overflow-y: auto; flex: 1; min-height: 0; }
   .sel-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: var(--ctl-opt-py, 8px) 10px; border-radius: var(--radius-xs);
     font-size: var(--ctl-fs, 13px); color: var(--text); cursor: pointer; }
+  .sel-opt + .sel-opt { margin-top: 1px; }
   .sel-opt-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sel-opt.active { background: #eff6ff; }
-  .sel-opt.selected { color: var(--action); font-weight: 700; }
+  .sel-hit { background: #fde68a; color: inherit; padding: 0 1px; border-radius: 2px; font-weight: 700; }
+  /* The chosen option: a solid tint with a strong left rule, so it reads at a glance. */
+  .sel-opt.selected { background: #e0f2fe; color: var(--action-dark); font-weight: 700; box-shadow: inset 3px 0 0 var(--action); }
   .sel-opt.selected svg { color: var(--action); flex-shrink: 0; width: 14px; height: 14px; }
-  .sel-opt.disabled { color: #adb7c6; cursor: not-allowed; background: transparent; }
+  /* Hover / keyboard highlight: the solid action blue, white text. */
+  .sel-opt.active { background: var(--action); color: #fff; box-shadow: none; }
+  .sel-opt.active.selected { background: var(--action-dark); }
+  .sel-opt.active svg { color: #fff; }
+  .sel-opt.active .sel-hit { background: rgba(255, 255, 255, .28); color: #fff; }
+  /* Pharmacy counter search results: the same solid highlight as the dropdowns. */
+  .pos-hit.active { background: var(--action); border-bottom-color: var(--action); }
+  .pos-hit.active, .pos-hit.active * { color: #fff !important; }
+  .pos-hit.active .badge, .pos-hit.active [class*="border"] { background: rgba(255, 255, 255, .18) !important; border-color: rgba(255, 255, 255, .5) !important; }
+  .sel-opt.disabled { color: #adb7c6; cursor: not-allowed; background: transparent; box-shadow: none; }
 
 /* ---------- Badges ---------- */
   .badge { @apply inline-block font-bold; padding: 3px 11px; border-radius: var(--radius-pill); font-size: 12px; letter-spacing: .2px; }
@@ -876,6 +898,40 @@ tr.ph-quar td { opacity: .6; }
 .dem-emerg:hover { background: #fff1f1; }
 
 .dem-search { position: relative; }
+/* Pharmacy counter: the customer match list and the attached-customer card. */
+/* Portalled to <body>, fixed coordinates from Pharmacy.jsx (the customer
+   panel clips overflow, and an in-flow list stretched it). */
+.pos-cust-list { position: fixed; z-index: 70; padding: 4px; background: #fff;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: 0 8px 20px -4px rgba(15, 45, 89, .16), 0 2px 6px -1px rgba(15, 45, 89, .08);
+  overflow-y: auto; animation: selIn .12s ease; }
+.pos-cust-list-head { padding: 6px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted, #64748b); }
+.pos-cust-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 10px; min-height: 0; border: 0; border-radius: var(--radius-xs);
+  background: transparent; cursor: pointer; text-align: left; color: var(--text); }
+.pos-cust-row + .pos-cust-row { margin-top: 1px; }
+.pos-cust-row.add { margin-top: 4px; box-shadow: 0 -1px 0 var(--line-soft, #eef2f7); }
+.pos-cust-row.add .pos-cust-name { color: var(--action); }
+.pos-cust-row.active { background: var(--action); box-shadow: none; }
+.pos-cust-row.active .pos-cust-name, .pos-cust-row.active .pos-cust-meta { color: #fff; }
+.pos-cust-row.active .pos-cust-avatar { background: rgba(255, 255, 255, .2); color: #fff; }
+.pos-cust-card { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 8px 10px 8px 10px; background: #fff;
+  border: 1px solid var(--line); border-left: 3px solid var(--action); border-radius: var(--radius-sm); }
+.pos-cust-avatar { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: #e0f2fe; color: var(--action-dark); font-weight: 800; font-size: 13px; }
+.pos-cust-avatar.sm { width: 30px; height: 30px; font-size: 11px; }
+.pos-cust-name { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.25; }
+.pos-cust-meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--ink-muted, #64748b); line-height: 1.3; margin-top: 1px; }
+.pos-cust-pills { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.pos-pill { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  white-space: nowrap; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.pos-pill.green { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.pos-pill.amber { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.pos-pill.red { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.pos-pill.blue { background: #f0f9ff; color: #0369a1; border-color: #bae6fd; }
+@media (max-width: 639px) {
+  .pos-cust-card { flex-wrap: wrap; }
+  .pos-cust-pills { order: 3; width: 100%; justify-content: flex-start; padding-left: 48px; }
+}
+
 .dem-search .pos-cust-hits { position: absolute; z-index: 20; background: #fff;
   border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px;
   box-shadow: var(--shadow-lg); max-height: 220px; overflow-y: auto; width: 100%; }
@@ -936,6 +992,8 @@ tr.ph-quar td { opacity: .6; }
 @media screen {
   html[data-theme="night"] { background: #0b0f19; }
   html[data-theme="night"] #root { filter: invert(0.92) hue-rotate(180deg); min-height: 100vh; }
+  /* Dropdown menus live outside #root (portalled), so they take the same filter. */
+  html[data-theme="night"] .sel-menu, html[data-theme="night"] .pos-cust-list { filter: invert(0.92) hue-rotate(180deg); }
   html[data-theme="night"] img, html[data-theme="night"] video, html[data-theme="night"] .receipt,
   html[data-theme="night"] .dc-sheet, html[data-theme="night"] .no-invert { filter: invert(1) hue-rotate(180deg); }
 }

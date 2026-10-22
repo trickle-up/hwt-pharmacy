@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { isTouch, useRevealOnSelect } from '../components/touch.js';
 import { useAuth } from '../auth.jsx';
-import Select from '../components/Select.jsx';
+import Select, { selectIsOpen } from '../components/Select.jsx';
 import { Icon } from '../components/icons.jsx';
 import { Alert, money, strengthOf } from '../components/ui.jsx';
 import { Kbd, BTN, BTN_DARK, BTN_GO, CTL, NUM, LABEL } from '../components/ws/index.jsx';
@@ -208,13 +208,13 @@ export default function Inventory() {
                 placeholder="Scan barcode or type brand / generic / SKU / DRAP number…" />
               <div className="absolute inset-y-0 right-0 pr-2 flex items-center"><Kbd>Esc</Kbd><span className="text-[10px] text-slate-500 ml-1">clear</span></div>
             </div>
-            <select value={schedule} onChange={(e) => setSchedule(e.target.value)} className={`${CTL} md:w-52`}>
+            <Select value={schedule} onChange={(e) => setSchedule(e.target.value)} className="md:!w-52">
               <option value="">All drug schedules</option>
               <option value="Rx">Prescription only (Rx)</option>
               <option value="OTC">Over the counter (OTC)</option>
               <option value="G">Schedule G</option>
               <option value="Narcotic">Controlled drugs</option>
-            </select>
+            </Select>
           </div>
           <div className="px-3 py-2 border-b border-slate-200 flex items-center gap-1 flex-wrap">
             {[['all', 'All medicines'], ['low', 'Low stock'], ['expiry', 'Near expiry'], ['drap', 'DRAP missing'], ['controlled', 'Schedule G / controlled']].map(([k, l]) => (
@@ -577,7 +577,7 @@ function ReceiveModal({ product, batches, onClose, onDone, onErr }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'F9') { e.preventDefault(); save(); }
-      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); }
+      else if (e.key === 'Escape' && !selectIsOpen()) { e.preventDefault(); e.stopPropagation(); onClose(); }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
@@ -849,7 +849,7 @@ function ProductModal({ product, batches, onClose, onDone, onErr }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'F9') { e.preventDefault(); save(); }
-      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); }
+      else if (e.key === 'Escape' && !selectIsOpen()) { e.preventDefault(); e.stopPropagation(); onClose(); }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);

@@ -146,10 +146,10 @@ export default function Departments() {
               </div>
               {tab !== 'depts' && (
                 <div className="flex items-center gap-2">
-                  <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} className={`${CTL} w-48`}>
+                  <Select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} className="!w-48">
                     <option value="">All departments</option>
                     {depts.map((d) => <option key={d.id} value={d.id}>{d.name}{d.pending ? ` (${d.pending} waiting)` : ''}</option>)}
-                  </select>
+                  </Select>
                   <span className="text-[10px] text-slate-500 font-mono hidden md:inline"><Kbd>▲</Kbd><Kbd>▼</Kbd> move <Kbd>Enter</Kbd> inspect</span>
                 </div>
               )}

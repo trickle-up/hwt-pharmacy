@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import Select from '../components/Select.jsx';
+import Select, { selectIsOpen } from '../components/Select.jsx';
 import { api } from '../api.js';
 import { isTouch, useRevealOnSelect } from '../components/touch.js';
 import { useAuth } from '../auth.jsx';
@@ -431,7 +431,7 @@ function CustomerFile({ customer, card, account, can, onClose, onErr, onDone, on
 // be copied by anyone who sees it.
 function PrintableCard({ card, customer, onClose }) {
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); } };
+    const onKey = (e) => { if (e.key === 'Escape' && !selectIsOpen()) { e.preventDefault(); e.stopPropagation(); onClose(); } };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
@@ -479,7 +479,7 @@ function NewCustomer({ onClose, onDone, onErr, onOpen }) {
   }, [f, busy, onDone, onErr, onOpen]);
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); }
+      if (e.key === 'Escape' && !selectIsOpen()) { e.preventDefault(); e.stopPropagation(); onClose(); }
       else if (e.key === 'F9') { e.preventDefault(); e.stopPropagation(); save(); }
     };
     window.addEventListener('keydown', onKey, true);
