@@ -478,6 +478,7 @@ export default function Pharmacy() {
   const blocked = !!blockReason;
 
   // --- Checkout -----------------------------------------------------------
+  const pendingCustomerRef = useRef(null);
   const checkout = useCallback(async () => {
     setErr('');
     if (!cart.length || blocked || busy) return;
@@ -508,9 +509,14 @@ export default function Pharmacy() {
         loadHeld();
         return;
       }
+      let buyer = patient;
+      if (!buyer && method === 'credit' && pendingCustomerRef.current) {
+        buyer = await pendingCustomerRef.current();
+        if (!buyer) return;
+      }
       const bill = await api.post('/pharmacy/sale', {
-        patient_id: patient?.id || null,
-        customer_name: patient ? null : (customerName.trim() || 'Walk-in customer'),
+        patient_id: buyer?.id || null,
+        customer_name: buyer ? null : (customerName.trim() || 'Walk-in customer'),
         category,
         payment_method: method,
         allow_partial: allowPartial,
@@ -528,7 +534,7 @@ export default function Pharmacy() {
       });
       // The slip prints what the SERVER recorded: the tender entered and the
       // change it computed, never a figure assumed at the counter.
-      const rc = { ...bill, change: bill.change_given };
+      const rc = { ...bill, change: bill.change_given, customer: buyer?.full_name || bill.customer_name, customer_contact: buyer?.contact };
       setReceipt(rc); setLastReceipt(rc);
       setCart([]); setPrescriptions([]); setDiscount(''); setTendered('');
       setActiveLine(null); qtyRefs.current = {};
@@ -826,6 +832,7 @@ export default function Pharmacy() {
                   setCustomerPhone={setCustomerPhone}
                   disabled={!!deptId}
                   onErr={setErr}
+                  pendingRef={pendingCustomerRef}
                 />
               )}
 
@@ -1404,7 +1411,7 @@ function expiryTone(iso) {
 //   just a name and phone     — an ordinary walk-in, nothing to store
 function CustomerBar({
   inputRef, patient, setPatient, card, creditAccount, customerName, setCustomerName,
-  customerPhone, setCustomerPhone, disabled, onErr, resetToken, seeking,
+  customerPhone, setCustomerPhone, disabled, onErr, resetToken, seeking, pendingRef,
 }) {
   const [key, setKey] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1449,13 +1456,24 @@ function CustomerBar({
 
   async function create() {
     try {
-      const r = await api.post('/patients', { ...nw, force: true });
-      setPatient(r.patient || r);
+      const r = await api.post('/patients', { ...nw, force: true, skip_visit: true });
+      const p = r.patient || r;
+      setPatient(p);
       setCreating(false);
       setNw({ full_name: '', contact: '' });
       setKey('');
-    } catch (e) { onErr(e.message); }
+      return p;
+    } catch (e) { onErr(e.message); return null; }
   }
+
+  // A customer typed into the form but not yet saved. Pay on account saves it
+  // first rather than failing with "credit needs a customer" while the name
+  // sits right there on screen.
+  useEffect(() => {
+    if (!pendingRef) return undefined;
+    pendingRef.current = creating && nw.full_name.trim() ? create : null;
+    return () => { pendingRef.current = null; };
+  });
 
   const initials = (n) => (n || '?').split(' ').filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join('');
 
@@ -1786,9 +1804,11 @@ function Receipt({ bill, config, user, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Thermal paper prints grey as faint dots, so everything on the slip is solid
+  // black and at least 12px; hierarchy comes from size and weight, not colour.
   const line = (label, value, strong) => (
-    <div className={`flex justify-between gap-3 py-0.5 ${strong ? 'font-bold text-sm' : 'text-xs'}`}>
-      <span className={strong ? '' : 'text-slate-600'}>{label}</span><span className="font-mono">{value}</span>
+    <div className={`flex justify-between gap-3 py-0.5 ${strong ? 'font-extrabold text-base' : 'text-[13px] font-semibold'}`}>
+      <span>{label}</span><span className="font-mono font-bold text-right whitespace-nowrap">{value}</span>
     </div>
   );
 
@@ -1832,33 +1852,41 @@ function Receipt({ bill, config, user, onClose }) {
 
       {/* The slip itself — the only thing that prints. */}
       <div className="col-span-12 xl:col-span-4">
-        <div className="receipt bg-white border border-slate-300 rounded-md shadow-xs p-4 mx-auto font-mono text-slate-900">
-          <div className="text-center border-b border-dashed border-slate-400 pb-2.5 mb-2.5">
-            <div className="font-sans font-bold text-sm">{config.pharmacy_name || 'Pharmacy'}</div>
-            {config.pharmacy_address && <div className="text-[10px] text-slate-600">{config.pharmacy_address}</div>}
-            {config.pharmacy_contact && <div className="text-[10px] text-slate-600">{config.pharmacy_contact}</div>}
-            {config.pharmacy_license_no && <div className="text-[10px] text-slate-600">Drug Sale Licence: {config.pharmacy_license_no}</div>}
-            <div className="text-xs font-bold mt-1.5">{bill.bill_no}</div>
-            <div className="text-[10px] text-slate-600">
+        <div className="receipt bg-white border border-slate-300 rounded-md shadow-xs p-4 mx-auto font-sans text-black">
+          <div className="text-center border-b border-dashed border-black pb-2.5 mb-2.5">
+            <div className="font-extrabold text-base leading-tight">{config.pharmacy_name || 'Pharmacy'}</div>
+            {config.pharmacy_address && <div className="text-xs font-semibold">{config.pharmacy_address}</div>}
+            {config.pharmacy_contact && <div className="text-xs font-semibold">{config.pharmacy_contact}</div>}
+            {config.pharmacy_license_no && <div className="text-xs font-semibold">Drug Sale Licence: {config.pharmacy_license_no}</div>}
+            <div className="font-mono text-sm font-extrabold mt-1.5">{bill.bill_no}</div>
+            <div className="font-mono text-[13px] font-bold">
               {new Date(bill.created_at ? `${bill.created_at.replace(' ', 'T')}Z` : Date.now()).toLocaleString('en-GB')}
             </div>
           </div>
 
-          <table className="w-full text-xs">
-            <thead className="text-[10px] uppercase text-slate-600 border-b border-slate-300">
+          {bill.customer && !bill.department && (
+            <div className="mb-2 pb-2 border-b border-dashed border-black">
+              {line('Customer', bill.customer)}
+              {bill.customer_contact && line('Mobile', bill.customer_contact)}
+            </div>
+          )}
+
+          <table className="receipt-items w-full text-[13px]">
+            <colgroup><col /><col className="w-[12%]" /><col className="w-[22%]" /><col className="w-[24%]" /></colgroup>
+            <thead className="text-xs font-extrabold uppercase border-b-2 border-black">
               <tr><th className="text-left py-1">Item</th><th className="text-right py-1">Qty</th><th className="text-right py-1">Rate</th><th className="text-right py-1">Total</th></tr>
             </thead>
             <tbody>{(bill.items || []).map((i) => (
-              <tr key={i.id} className="align-top">
-                <td className="py-1 pr-2 font-sans">{i.description}</td>
-                <td className="py-1 text-right">{i.quantity}</td>
-                <td className="py-1 text-right">{money(i.unit_price)}</td>
-                <td className="py-1 text-right">{money(i.line_total)}</td>
+              <tr key={i.id} className="align-top border-b border-dotted border-black">
+                <td className="py-1 pr-2 font-semibold">{i.description}</td>
+                <td className="py-1 text-right font-mono font-bold">{i.quantity}</td>
+                <td className="py-1 text-right font-mono font-bold whitespace-nowrap">{Number(i.unit_price || 0).toFixed(2)}</td>
+                <td className="py-1 text-right font-mono font-bold whitespace-nowrap">{Number(i.line_total || 0).toFixed(2)}</td>
               </tr>
             ))}</tbody>
           </table>
 
-          <div className="mt-2 pt-2 border-t border-slate-300 font-sans">
+          <div className="mt-2 pt-2 border-t-2 border-black">
             {line('Gross', money(bill.gross_amount))}
             {bill.discount > 0 && line('Discount', '− ' + money(bill.discount))}
             {bill.subsidy > 0 && line('Subsidy', '− ' + money(bill.subsidy))}
@@ -1869,24 +1897,24 @@ function Receipt({ bill, config, user, onClose }) {
                 {line('Change returned', money(bill.change_given ?? bill.change ?? 0))}
               </>
             )}
-            {line('Paid by', bill.department ? 'On account — no cash' : bill.payment_method)}
+            {line('Paid by', bill.department ? 'On account — no cash' : bill.payment_method === 'credit' ? 'On account (credit)' : bill.payment_method)}
             {user && !bill.department && line('Dispensed by', user.full_name)}
           </div>
 
           {bill.department && (
-            <div className="border-t border-dashed border-slate-400 mt-3 pt-2.5 font-sans">
+            <div className="border-t border-dashed border-black mt-3 pt-2.5">
               {line('Department', bill.department)}
               {bill.for_patient && line('For', bill.for_patient)}
               {bill.slip_ref && line('Their slip', bill.slip_ref)}
               {line('Collected by', bill.collected_by || '—')}
-              <div className="flex justify-between gap-6 mt-6 text-[10px]">
+              <div className="flex justify-between gap-6 mt-6 text-xs font-semibold">
                 <div>Issued by ______________</div>
                 <div>Received by ______________</div>
               </div>
             </div>
           )}
 
-          <div className="text-center text-[10px] text-slate-600 mt-3 font-sans">
+          <div className="text-center text-xs font-semibold mt-3 pt-2 border-t border-dashed border-black">
             {bill.department
               ? 'Departmental issue note — file with the department’s copy of the slip.'
               : 'Medicines are not returnable without this receipt. Please check expiry before use.'}

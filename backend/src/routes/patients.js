@@ -130,13 +130,22 @@ router.get(
   })
 );
 
-// Register a new patient (+ opening visit)
+// Register a new patient (+ opening visit). The pharmacy counter may also
+// register a customer it is selling to on account, but only as a plain Paid
+// customer: pricing categories and staff allowances stay with reception.
 router.post(
   '/',
-  requirePermission(PERMISSIONS.PATIENT_MANAGE),
+  requirePermission(PERMISSIONS.PATIENT_MANAGE, PERMISSIONS.PHARMACY_SELL),
   wrap((req, res) => {
-    const b = req.body || {};
+    const b = { ...(req.body || {}) };
     if (!b.full_name) return res.status(400).json({ error: 'Patient name is required' });
+    if (!req.user.permissions.includes(PERMISSIONS.PATIENT_MANAGE)) {
+      b.category = 'Paid';
+      b.customer_type = 'registered';
+      b.staff_cap = null;
+      b.designation = null;
+      b.skip_visit = true;
+    }
     const category = CATEGORIES.includes(b.category) ? b.category : 'Paid';
 
     // Warn about likely duplicates (same name + contact, or same CNIC) unless
@@ -192,7 +201,8 @@ router.post(
         });
       const patientId = info.lastInsertRowid;
 
-      // Opening visit
+      // Opening visit — not for a pharmacy customer, who never came to OPD.
+      if (b.skip_visit) return { patientId, visitId: null, code, qr };
       const visitInfo = db
         .prepare(
           `INSERT INTO visits (patient_id, visit_type, department, created_by)
