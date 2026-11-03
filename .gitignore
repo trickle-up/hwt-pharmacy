@@ -11,3 +11,16 @@ frontend/e2e/auth.json
 frontend/test-results/
 frontend/e2e/auth-pharmacist.json
 frontend/playwright-report/
+
+# Local-only design, planning and QA material (kept on disk, not in the repo)
+stitch_offline_pharmacy_pos_redesign/
+hwt-client/
+hwt-core/
+HWT-Pharmacy-*.md
+hwt-pharmacy-mobile-fix-spec.md
+hwt-pharmacist-mobile-fix-spec.md
+ARCHITECTURE_OVERVIEW.md
+MODULES_AND_FEATURES.md
+PROJECT_PLAN.md
+Requirements.md
+*.xls

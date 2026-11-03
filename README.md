@@ -20,9 +20,8 @@ This repository contains the initial project documents and planning assets neede
 - Role-based access control and audit logging
 
 ## Documents
-- `PROJECT_PLAN.md` — project phases, milestones, assumptions, and next steps
-- `ARCHITECTURE_OVERVIEW.md` — system architecture, offline/online tiers, sync model, and data flow
-- `MODULES_AND_FEATURES.md` — module breakdown, core functional requirements, and key entities
+- `GETTING_STARTED.md` — install, run, and seed the app locally
+- `DEPLOY-RENDER.md` — deploying to Render (see `render.yaml`)
 
 ## Next Steps
 1. Review and approve the requirement summary and project plan.
@@ -31,4 +30,4 @@ This repository contains the initial project documents and planning assets neede
 4. Begin implementation of the offline on-site application and synchronization engine.
 
 ## Notes
-This project is structured around the SRS in `Requirements.md` and emphasizes a fully operational offline hospital system with a synchronized online layer for donors and patients.
+This project emphasizes a fully operational offline hospital system with a synchronized online layer for donors and patients.
